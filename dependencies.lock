@@ -1,0 +1,39 @@
+dependencies:
+  bblanchon/arduinojson:
+    component_hash: 3e140c209c598a37cd5c58defe05f6dbf2cc1a8b6e85d33885ecc8c2817d2e1f
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 6.21.4
+  chmorgan/esp-libhelix-mp3:
+    component_hash: cbb76089dc2c5749f7b470e2e70aedc44c9da519e04eb9a67d4c7ec275229e53
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.0.3
+  espressif/arduino-esp32:
+    component_hash: e946617ee6bec30ef0cff505bc537e658a80d7b9222c060e225bf748f2029442
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 3.0.0-alpha2
+  espressif/mdns:
+    component_hash: 810ec139689ae93bf42520d05de4855fbb68f7140ef67797d91d8d61829589cb
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 1.2.2
+  idf:
+    component_hash: null
+    source:
+      type: idf
+    version: 5.1.1
+  thingsboard/ThingsBoard:
+    component_hash: 5d4551099858627f761495ee101f5cd9cf7b09c9afa68e6fc69218382b90e9c3
+    source:
+      service_url: https://api.components.espressif.com/
+      type: service
+    version: 0.12.0
+manifest_hash: 26d06c2246e9e516362d01034d9c0f7134f21b4399a98135dd74c2f3b26c9a8b
+target: esp32
+version: 1.0.0
