@@ -1,10 +1,15 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  #espressif/arduino-esp32: "^3.0.0-alpha2"
-  thingsboard/ThingsBoard: "*"
+  thingsboard/thingsboard: "^0.12.0"
   esp_simple_wifi:
     path: components/esp_simple_wifi
     git: https://github.com/Tikitikitikidesuka/esp_simple_wifi
+  ultrasonic:
+    path: components/ultrasonic
+    git: https://github.com/UncleRus/esp-idf-lib.git
+  esp_idf_lib_helpers:
+    path: components/esp_idf_lib_helpers
+    git: https://github.com/UncleRus/esp-idf-lib.git
 
   ## Required IDF version
   idf:
