@@ -8,7 +8,7 @@
 #define LEDC_DUTY_RES LEDC_TIMER_8_BIT  // Set duty resolution to 8 bits
 #define PWM_FREQUENCY 5000              // Frequency in Hertz. Set frequency at 5 kHz
 
-const uint8_t PUMP_GPIO_PINS[] = {5, 17, 16};
+const uint8_t PUMP_GPIO_PINS[] = {25, 33, 32};
 const uint8_t PUMP_NUM = sizeof(PUMP_GPIO_PINS) / sizeof(PUMP_GPIO_PINS[0]);
 
 static uint8_t pump_intensities[sizeof(PUMP_GPIO_PINS) / sizeof(PUMP_GPIO_PINS[0])] = {0};
