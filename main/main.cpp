@@ -8,8 +8,11 @@
 #include <freertos/task.h>
 #include <nvs_flash.h>
 #include <pump_driver.h>
+#include <ultrasonic.h>
+#include <xkcy25.h>
 
 #include "config.h"
+#include "h1.h"
 
 constexpr char TAG[] = "MAIN";
 
@@ -26,13 +29,17 @@ constexpr const char RPC_GET_PUMP2_INTENSITY_CALLBACK_METHOD[] = "get_pump2_inte
 constexpr uint16_t MAX_MESSAGE_SIZE = 1024;
 
 bool auto_mode = false;
+uint16_t light_level = 0;
 
 Espressif_MQTT_Client mqtt_client;
 ThingsBoard tb(mqtt_client, MAX_MESSAGE_SIZE);
 
 const adc1_channel_t LIGHT_ADC_CHANNEL = ADC1_CHANNEL_7;
+const gpio_num_t WATER_LEVEL_SENSOR_PIN = GPIO_NUM_4;
 
 bool tb_connect();
+
+void playSong(void* parameters);
 
 uint16_t read_light_level();
 
@@ -150,15 +157,17 @@ extern "C" void app_main() {
     }
 
     PUMPS_init();
+    XKCY25_init(WATER_LEVEL_SENSOR_PIN);
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(LIGHT_ADC_CHANNEL, ADC_ATTEN_DB_6);
-
     sta_start();
+
+    xTaskCreate(&playSong, "autosong", 2048, nullptr, 10, nullptr);
 
     bool subscribed = false;
 
     while (true) {
-        ESP_LOGD(TAG, "Iteration");
+        ESP_LOGI(TAG, "Iteration");
 
         if (!sta_connected()) {
             ESP_LOGD(TAG, "Reconnecting to WiFi");
@@ -166,21 +175,23 @@ extern "C" void app_main() {
                 ESP_LOGD(TAG, "WiFi connection succeeded");
         } else if (!tb.connected()) {
             subscribed = false;
-            ESP_LOGD(TAG, "Reconnecting to ThingsBoard server");
+            ESP_LOGI(TAG, "Reconnecting to ThingsBoard server");
             if (tb_connect())
-                ESP_LOGD(TAG, "Connection to ThingsBoard server succeeded");
+                ESP_LOGI(TAG, "Connection to ThingsBoard server succeeded");
         } else if (!subscribed) {
             tb.RPC_Unsubscribe();
-            ESP_LOGD(TAG, "Subscribing to RPC");
+            ESP_LOGI(TAG, "Subscribing to RPC");
             if (tb.RPC_Subscribe(RPC_CALLBACKS.cbegin(), RPC_CALLBACKS.cend())) {
-                ESP_LOGD(TAG, "RPC subscription succeeded");
+                ESP_LOGI(TAG, "RPC subscription succeeded");
                 subscribed = true;
             }
         } else {
-            ESP_LOGD(TAG, "Sending data...");
+            ESP_LOGI(TAG, "Sending data...");
 
-            tb.sendTelemetryData("water_level", read_water_depth());
+            tb.sendTelemetryData("water_level_ok", 100 * (int)XKCY25_get_water_level());
+            ESP_LOGI(TAG, "Water: %d", XKCY25_get_water_level());
             tb.sendTelemetryData("light", read_light_level());
+            ESP_LOGI(TAG, "Light: %d", read_light_level());
             tb.sendTelemetryData("auto_mode", auto_mode);
 
             // Process messages
@@ -192,14 +203,15 @@ extern "C" void app_main() {
 }
 
 bool tb_connect() {
-    ESP_LOGD(TAG, "Connecting to: %s", CONFIG::THINGSBOARD_SERVER);
+    ESP_LOGI(TAG, "Connecting to: %s", CONFIG::THINGSBOARD_SERVER);
     return tb.connect(CONFIG::THINGSBOARD_SERVER, CONFIG::THINGSBOARD_DEVICE_TOKEN,
                       CONFIG::THINGSBOARD_PORT);
 }
 
 uint16_t read_light_level() {
-    ESP_LOGD(TAG, "Light level: %d", adc1_get_raw(LIGHT_ADC_CHANNEL));
-    return adc1_get_raw(LIGHT_ADC_CHANNEL);
+    //ESP_LOGI(TAG, "Light level: %d", adc1_get_raw(LIGHT_ADC_CHANNEL));
+    light_level = adc1_get_raw(LIGHT_ADC_CHANNEL);
+    return light_level;
 }
 
 RPC_Response set_auto_mode_callback(const RPC_Data& data) {
@@ -213,7 +225,8 @@ RPC_Response set_pump_intensity(uint8_t pump, const RPC_Data& data) {
     ESP_LOGI(TAG, "Setting pump %d intensity to %d", pump, (int)data);
 
     uint8_t intensity = (int)data * 255 / 100;
-    PUMPS_set_pump_intensity(pump, intensity);
+    if (!auto_mode)
+        PUMPS_set_pump_intensity(pump, intensity);
     return RPC_Response(NULL, intensity);
 }
 
