@@ -8,11 +8,12 @@
 #include <freertos/task.h>
 #include <nvs_flash.h>
 #include <pump_driver.h>
-#include <ultrasonic.h>
 
 #include "config.h"
 
 constexpr char TAG[] = "MAIN";
+
+const char CONFIG_FILE_PATH[] = "/spiffs/config.json";
 
 constexpr const char RPC_SET_AUTO_MODE_CALLBACK_METHOD[] = "set_auto_mode";
 constexpr const char RPC_SET_PUMP0_INTENSITY_CALLBACK_METHOD[] = "set_pump0_intensity";
@@ -29,16 +30,10 @@ bool auto_mode = false;
 Espressif_MQTT_Client mqtt_client;
 ThingsBoard tb(mqtt_client, MAX_MESSAGE_SIZE);
 
-const ultrasonic_sensor_t sensor = {
-    .trigger_pin = GPIO_NUM_19,
-    .echo_pin = GPIO_NUM_18,
-};
-
 const adc1_channel_t LIGHT_ADC_CHANNEL = ADC1_CHANNEL_7;
 
 bool tb_connect();
 
-float read_water_depth();
 uint16_t read_light_level();
 
 RPC_Response set_auto_mode_callback(const RPC_Data& data);
@@ -59,13 +54,104 @@ const std::array<RPC_Callback, 7U> RPC_CALLBACKS = {
     RPC_Callback{RPC_GET_PUMP2_INTENSITY_CALLBACK_METHOD, get_pump2_intensity_callback},
 };
 
+extern "C" {
+bool validate_config(char ssid[MAX_WIFI_SSID_LENGTH + 1],
+                     char password[MAX_WIFI_PASSWORD_LENGTH + 1]) {
+    bool connected = false;
+
+    sta_start();
+    connected = sta_connect(ssid, password, 5);
+    sta_stop();
+
+    return connected;
+}
+
+void read_config(char ssid[MAX_WIFI_SSID_LENGTH + 1], char password[MAX_WIFI_PASSWORD_LENGTH + 1]) {
+    char file_content[128];
+
+    FILE* config_file = fopen(CONFIG_FILE_PATH, "r");
+    fgets(file_content, sizeof(file_content), config_file);
+
+    cJSON* json = cJSON_Parse(file_content);
+    cJSON* json_ssid = cJSON_GetObjectItemCaseSensitive(json, "ssid");
+    cJSON* json_password = cJSON_GetObjectItemCaseSensitive(json, "password");
+
+    memcpy(ssid, json_ssid->valuestring, strnlen(json_ssid->valuestring, MAX_WIFI_SSID_LENGTH) + 1);
+    memcpy(password, json_password->valuestring,
+           strnlen(json_password->valuestring, MAX_WIFI_PASSWORD_LENGTH) + 1);
+
+    cJSON_Delete(json);
+}
+
+void create_config(char ssid[MAX_WIFI_SSID_LENGTH + 1],
+                   char password[MAX_WIFI_PASSWORD_LENGTH + 1]) {
+    bool connected = false;
+
+    while (!connected) {
+        uint8_t mac[6];
+        esp_base_mac_addr_get(mac);
+
+        sprintf(ssid, "esp%02X%02X", mac[4], mac[5]);
+
+        ESP_LOGI(TAG, "starting wifi provisioning server.");
+        wifi_provisioning(ssid, "password", ssid, password);
+
+        ESP_LOGI(TAG, "testing wifi provisioning credentials.");
+        connected = validate_config(ssid, password);
+        if (!connected)
+            ESP_LOGI(TAG, "wifi provisioning failed.");
+        else
+            ESP_LOGI(TAG, "wifi provisioning succeeded.");
+    }
+
+    ESP_LOGI(TAG, "storing new credentials.");
+    FILE* config_file = fopen(CONFIG_FILE_PATH, "w");
+    fprintf(config_file, "{\"ssid\": \"%s\", \"password\": \"%s\"}", ssid, password);
+    fclose(config_file);
+}
+}
+
 extern "C" void app_main() {
     nvs_flash_init();
+
+    esp_vfs_spiffs_conf_t spiffs_conf = {.base_path = "/spiffs",
+                                         .partition_label = NULL,
+                                         .max_files = 5,
+                                         .format_if_mount_failed = true};
+
+    ESP_ERROR_CHECK(esp_vfs_spiffs_register(&spiffs_conf));
+
+    size_t total = 0, used = 0;
+    esp_err_t ret = esp_spiffs_info(spiffs_conf.partition_label, &total, &used);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s). Formatting...",
+                 esp_err_to_name(ret));
+        esp_spiffs_format(spiffs_conf.partition_label);
+        return;
+    } else {
+        ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+    }
+
+    char ssid[32];
+    char password[64];
+
+    FILE* config_file = fopen(CONFIG_FILE_PATH, "r");
+    if (config_file != NULL) {  // If config file exists
+        fclose(config_file);
+        ESP_LOGI(TAG, "config file found.");
+
+        read_config(ssid, password);
+        if (!validate_config(ssid, password))
+            create_config(ssid, password);
+    } else {  // If config file does not exist
+        ESP_LOGI(TAG, "config file not found.");
+
+        create_config(ssid, password);
+    }
 
     PUMPS_init();
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(LIGHT_ADC_CHANNEL, ADC_ATTEN_DB_6);
-    ultrasonic_init(&sensor);
 
     sta_start();
 
@@ -76,7 +162,7 @@ extern "C" void app_main() {
 
         if (!sta_connected()) {
             ESP_LOGD(TAG, "Reconnecting to WiFi");
-            if (sta_connect(CONFIG::WIFI_SSID, CONFIG::WIFI_PASSWORD, 5))
+            if (sta_connect(ssid, password, 5))
                 ESP_LOGD(TAG, "WiFi connection succeeded");
         } else if (!tb.connected()) {
             subscribed = false;
@@ -109,29 +195,6 @@ bool tb_connect() {
     ESP_LOGD(TAG, "Connecting to: %s", CONFIG::THINGSBOARD_SERVER);
     return tb.connect(CONFIG::THINGSBOARD_SERVER, CONFIG::THINGSBOARD_DEVICE_TOKEN,
                       CONFIG::THINGSBOARD_PORT);
-}
-
-float read_water_depth() {
-    float distance = 0;
-
-    esp_err_t res = ultrasonic_measure(&sensor, 10, &distance);
-    if (res != ESP_OK) {
-        switch (res) {
-            case ESP_ERR_ULTRASONIC_PING:
-                ESP_LOGE(TAG, "Cannot ping (device is in invalid state)\n");
-                break;
-            case ESP_ERR_ULTRASONIC_PING_TIMEOUT:
-                ESP_LOGE(TAG, "Ping timeout (no device found)\n");
-                break;
-            case ESP_ERR_ULTRASONIC_ECHO_TIMEOUT:
-                ESP_LOGE(TAG, "Echo timeout (i.e. distance too big)\n");
-                break;
-            default:
-                ESP_LOGE(TAG, "%s\n", esp_err_to_name(res));
-        }
-    }
-
-    return 100 * distance;
 }
 
 uint16_t read_light_level() {
