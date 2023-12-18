@@ -1,14 +1,18 @@
 #include <Espressif_MQTT_Client.h>
 #include <ThingsBoard.h>
+#include <cJSON.h>
 #include <driver/adc.h>
+#include <esp_err.h>
+#include <esp_ez_provisioning.h>
 #include <esp_log.h>
+#include <esp_mac.h>
 #include <esp_random.h>
 #include <esp_simple_wifi.h>
+#include <esp_spiffs.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <nvs_flash.h>
 #include <pump_driver.h>
-#include <ultrasonic.h>
 #include <xkcy25.h>
 
 #include "config.h"
@@ -212,6 +216,21 @@ uint16_t read_light_level() {
     //ESP_LOGI(TAG, "Light level: %d", adc1_get_raw(LIGHT_ADC_CHANNEL));
     light_level = adc1_get_raw(LIGHT_ADC_CHANNEL);
     return light_level;
+}
+
+void playSong(void* parameters) {
+    while (true) {
+        for (int i = 0; auto_mode && i < SONG_LENGTH; ++i) {
+            if (light_level > 2048)
+                PUMPS_set_pump_intensity(0, 0);
+            else
+                PUMPS_set_pump_intensity(0, hardcodedSong1[i] * 255 / 60);
+
+            PUMPS_set_pump_intensity(0, hardcodedSong2[i] * 255 / 70);
+            PUMPS_set_pump_intensity(0, hardcodedSong2[i] * 255 / 70);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
+    }
 }
 
 RPC_Response set_auto_mode_callback(const RPC_Data& data) {

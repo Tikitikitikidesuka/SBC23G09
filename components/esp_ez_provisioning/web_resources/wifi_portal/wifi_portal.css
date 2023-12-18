@@ -1,0 +1,118 @@
+.login-page {
+    font-family: 'Segoe UI Symbol', Geneva, Tahoma, Verdana, Roboto, Arial, sans-serif;
+    font-size: 14px;
+    padding: 2%;
+    width: 96%;
+    max-width: 400px;
+    margin: 0 auto;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+}
+
+.header ul {
+    padding: 0;
+}
+
+.icon {
+    position: absolute;
+    right: 80px;
+    font-size: 24px;
+    line-height: 1em;
+    color: #aaa;
+}
+
+.badge {
+    position: absolute;
+    right: 32px;
+    color: #444;
+    background-color: #bbdefb;
+    padding: 0 8px;
+    border-radius: 12px;
+    line-height: 1.8em;
+}
+
+.selected {
+    color: #fafafa !important;
+    background-color: #11c1f3 !important;
+}
+
+.header li {
+    text-align: left;
+    padding: 8px 16px;
+    list-style-type: none;
+    margin-bottom: 4px;
+    line-height: 2em;
+    border-radius: 8px;
+    color: #444;
+    background-color: #fafafa;
+    border: solid 2px #bbdefb;
+}
+
+.title {
+    text-align: center;
+    color: #11c1f3;
+    font-size: 20px;
+    padding: 0px 0px 0px 0px;
+}
+
+.status {
+    text-align: center;
+    font-size: 20px;
+    padding: 0px 0px 0px 0px;
+    display: none;
+}
+
+
+.form {
+    position: relative;
+    background: #fafafa;
+    font-weight: bold;
+    padding: 4px 16px 16px 16px;
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.2), 0 5px 5px 0 rgba(0, 0, 0, 0.24);
+    border-radius: 10px;
+}
+
+.form input {
+    width: 100%;
+    border: none;
+    background: #f2f2f2;
+    border-bottom: 3px solid #bbdefb;
+    outline-color: #bbdefb;
+    padding: 16px;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+
+.form button {
+    color: #fafafa;
+    background: #11c1f3;
+    border: solid 2px #bbdefb;
+    border-radius: 8px;
+    text-transform: uppercase;
+    outline: 0;
+    width: 100%;
+    padding: 16px;
+    margin-top: 8px;
+}
+
+.form button:hover,
+.form button:focus {
+    background: #387ef5;
+}
+
+input {
+    border-radius: 10px;
+}
+
+body {
+    background: #387ef5;
+    background: -webkit-linear-gradient(right, #387ef5, #b98fd9);
+    background: -moz-linear-gradient(right, #387ef5, #b98fd9);
+    background: -o-linear-gradient(right, #387ef5, #b98fd9);
+    background: linear-gradient(to left, #387ef5, #b98fd9);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}

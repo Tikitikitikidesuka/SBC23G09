@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>WiFi Station Config</title>
+    <link rel="stylesheet" type="text/css" href="wifi_portal.css">
+</head>
+<div class="login-page">
+    <div class="form">
+        <p class="title">Connect to WiFi AP</p>
+        <form class="login-form" action="javascript:void(0);">
+            <input id="ssid_input" type="text" maxlength=31 placeholder="SSID" />
+            <input id="password_input" type="password" maxlength=63 placeholder="password" />
+            <button onclick="submitData()">Connect</button>
+        </form>
+        <p class="status">Connect to WiFi AP</p>
+    </div>
+</div>
+
+<script>
+    async function submitData() {
+        const ssid = document.getElementById("ssid_input").value;
+        const password = document.getElementById("password_input").value;
+
+        const body = { ssid, password };
+
+        const response = await fetch(window.location.href + 'connect', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+        });
+
+        const serverResponse = await response;
+
+        const status = document.getElementsByClassName('status')[0];
+        if (serverResponse.ok) {
+            const form = document.getElementsByClassName('login-form')[0];
+            const title = document.getElementsByClassName('title')[0];
+
+            form.style.display = "none"
+            title.style.display = "none"
+            status.style.padding = "16px 0px 0px 0px"
+
+            status.style.color = "#11c1f3";
+        } else {
+            status.style.color = "#f31111";
+        }
+        status.textContent = await serverResponse.text();
+        status.style.display = "block";
+    }
+</script>
