@@ -2,12 +2,14 @@
 #include <ThingsBoard.h>
 #include <cJSON.h>
 #include <driver/adc.h>
+#include <driver/rtc_io.h>
 #include <esp_err.h>
 #include <esp_ez_provisioning.h>
 #include <esp_log.h>
 #include <esp_mac.h>
 #include <esp_random.h>
 #include <esp_simple_wifi.h>
+#include <esp_sleep.h>
 #include <esp_spiffs.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -40,6 +42,7 @@ ThingsBoard tb(mqtt_client, MAX_MESSAGE_SIZE);
 
 const adc1_channel_t LIGHT_ADC_CHANNEL = ADC1_CHANNEL_7;
 const gpio_num_t WATER_LEVEL_SENSOR_PIN = GPIO_NUM_4;
+const gpio_num_t BUTTON_PIN = GPIO_NUM_2;
 
 bool tb_connect();
 
@@ -122,7 +125,24 @@ void create_config(char ssid[MAX_WIFI_SSID_LENGTH + 1],
 }
 }
 
+static void IRAM_ATTR buttonSleep(void* arg) {
+    esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1);
+}
+
 extern "C" void app_main() {
+    gpio_set_direction(BUTTON_PIN, GPIO_MODE_INPUT);
+    gpio_intr_enable(BUTTON_PIN);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(BUTTON_PIN, buttonSleep, (void*)BUTTON_PIN);
+
+    /*
+    if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_EXT0) {
+        esp_sleep_enable_ext0_wakeup(BUTTON_PIN, 1);
+    } else {
+        gpio_isr_register()
+    }
+    */
+
     nvs_flash_init();
 
     esp_vfs_spiffs_conf_t spiffs_conf = {.base_path = "/spiffs",
